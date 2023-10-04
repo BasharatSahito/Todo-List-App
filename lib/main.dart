@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
 import 'package:todo_list/pages/homepage.dart';
+import 'package:todo_list/utils/provider.dart';
 
 void main() async {
   await Hive.initFlutter();
@@ -14,11 +16,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
-      theme: ThemeData(primarySwatch: Colors.yellow),
-      home: const HomePage(),
+    return ChangeNotifierProvider(
+      create: (_) => TodoListProvider(),
+      builder: (context, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Flutter Demo',
+          theme: ThemeData(primarySwatch: Colors.yellow),
+          home: const HomePage(),
+        );
+      },
     );
   }
 }

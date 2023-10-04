@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:provider/provider.dart';
 import 'package:todo_list/database/hive_db.dart';
 import 'package:todo_list/utils/dialog_box.dart';
+import 'package:todo_list/utils/provider.dart';
 import 'package:todo_list/utils/todo_tile.dart';
 
 class HomePage extends StatefulWidget {
@@ -13,10 +15,13 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _box = Hive.box("myBox");
-  HiveDb db = HiveDb();
+
+  late HiveDb db;
+
   @override
   void initState() {
     super.initState();
+    db = HiveDb(context);
     initialData();
   }
 
@@ -33,15 +38,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   void checkBoxChanged(int index) {
-    setState(() {
-      db.todoList[index][1] = !db.todoList[index][1];
-    });
-    db.saveNewTask(db.todoList);
+    final todoProvider = Provider.of<TodoListProvider>(context, listen: false);
+    todoProvider.checkBoxProvider(index);
+    db.saveNewTask(todoProvider.todoList);
   }
 
   TextEditingController controller = TextEditingController();
 
-  void saveNewTask() {
+  void createNewTask() {
     if (controller.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text(
@@ -50,11 +54,11 @@ class _HomePageState extends State<HomePage> {
         ),
       ));
     } else {
-      setState(() {
-        db.todoList.add([controller.text.toString(), false]);
-        controller.clear();
-      });
-      db.saveNewTask(db.todoList);
+      final todoProvider =
+          Provider.of<TodoListProvider>(context, listen: false);
+      todoProvider.makeNewTask(controller);
+      controller.clear();
+      db.saveNewTask(todoProvider.todoList);
       Navigator.of(context).pop();
     }
   }
@@ -65,17 +69,16 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return DialogBox(
           controller: controller,
-          saveNewTask: saveNewTask,
+          saveNewTask: createNewTask,
         );
       },
     );
   }
 
   void deleteTask(int index) {
-    setState(() {
-      db.todoList.removeAt(index);
-    });
-    db.saveNewTask(db.todoList);
+    final todoProvider = Provider.of<TodoListProvider>(context, listen: false);
+    todoProvider.removeTask(index);
+    db.saveNewTask(todoProvider.todoList);
   }
 
   @override
@@ -87,24 +90,29 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
       ),
       backgroundColor: Colors.yellow[200],
-      body: initialData() == false
-          ? const Center(
-              child: Text(
-                "Create New Task",
-                style: TextStyle(fontSize: 17),
-              ),
-            )
-          : ListView.builder(
-              itemCount: db.todoList.length,
-              itemBuilder: (context, index) {
-                return TodoTile(
-                  tileTitle: db.todoList[index][0],
-                  taskCompleted: db.todoList[index][1],
-                  onChanged: (value) => checkBoxChanged(index),
-                  deleteTask: (value) => deleteTask(index),
+      body: Consumer<TodoListProvider>(
+        builder: (context, value, child) {
+          bool hasData = initialData();
+          return hasData == false
+              ? const Center(
+                  child: Text(
+                    "Create New Task",
+                    style: TextStyle(fontSize: 17),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: value.todoList.length,
+                  itemBuilder: (context, index) {
+                    return TodoTile(
+                      tileTitle: value.todoList[index][0],
+                      taskCompleted: value.todoList[index][1],
+                      onChanged: (value) => checkBoxChanged(index),
+                      deleteTask: (value) => deleteTask(index),
+                    );
+                  },
                 );
-              },
-            ),
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => createTask(),
         child: const Icon(Icons.add),
